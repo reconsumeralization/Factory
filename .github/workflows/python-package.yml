@@ -38,3 +38,232 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+    repository = Repository.query.get(repository_id)
+    form = CreateRepositoryForm(obj=repository)
+    if request.method == "POST":
+        form.populate_obj(repository)
+        repository_controller.update_repository(repository)
+        return redirect(url_for("main_routes.show_repository", repository_id=repository.id))
+    return render_template("repository/repository_edit.html", form=form)
+
+# Install required packages
+os.system("pip install Flask")
+os.system("pip install Flask-Login")
+os.system("pip install Flask-Migrate")
+os.system("pip install Flask-WTF")
+os.system("pip install SQLAlchemy")
+
+# Create the application factory function
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import LoginManager
+
+db = SQLAlchemy()
+migrate = Migrate()
+login = LoginManager()
+
+def create_app(config_class):
+    app = Flask(__name__)
+    app.config.from_object(config_class)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login.init_app(app)
+
+    from app.routes.main_routes import main_routes
+    app.register_blueprint(main_routes)
+
+    from app.errors import error_routes
+    app.register_blueprint(error_routes)
+
+    return app
+
+# Set up the database
+from app import create_app, db
+from app.models import User, Repository
+
+app = create_app(os.getenv("FLASK_CONFIG") or "config.DevelopmentConfig")
+
+@app.shell_context_processor
+def make_shell_context():
+    return {"db": db, "User": User, "Repository": Repository}
+
+@app.cli.command("create_db")
+def create_db():
+    db.create_all()
+
+# Create the templates directory
+os.makedirs("app/templates/repository", exist_ok=True)
+os.makedirs("app/templates/user", exist_ok=True)
+
+# Create a dictionary containing the file paths and their content
+files_and
+_content = {
+    "app/__init__.py": """
+from flask import Flask
+from app.config import Config
+from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
+from flask_login import LoginManager
+
+db = SQLAlchemy()
+migrate = Migrate()
+login = LoginManager()
+
+def create_app(config_class):
+    app = Flask(__name__)
+    app.config.from_object(config_class)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login.init_app(app)
+
+    from app.routes.main_routes import main_routes
+    app.register_blueprint(main_routes)
+
+    from app.errors import error_routes
+    app.register_blueprint(error_routes)
+
+    return app
+
+from app import models
+""",
+    "app/config.py": """
+import os
+
+basedir = os.path.abspath(os.path.dirname(__file__))
+
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY') or 'hard to guess string'
+    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
+        'sqlite:///' + os.path.join(basedir, 'app.db')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+
+class ProductionConfig(Config):
+    pass
+""",
+    "app/routes/main_routes.py": """
+from flask import Blueprint, render_template, redirect, url_for
+from flask_login import login_required
+from app.controllers.repository import RepositoryController
+from app.controllers.user import UserController
+from app.forms.repository_forms import CreateRepositoryForm
+from app.forms.user_forms import CreateUserForm
+
+main_routes = Blueprint("main_routes", __name__)
+
+repository_controller = RepositoryController()
+user_controller = UserController()
+
+@main_routes.route("/")
+def index():
+    return render_template("index.html")
+
+@main_routes.route("/repositories")
+def list_repositories():
+    repositories = repository_controller.list_repositories()
+    return render_template("repository/repository_list.html", repositories=repositories)
+
+@main_routes.route("/repositories/<int:repository_id>")
+def show_repository(repository_id):
+    repository = repository_controller.show_repository(repository_id)
+    return render_template("repository/repository_detail.html", repository=repository)
+
+@main_routes.route("/repositories/new", methods=["GET", "POST"])
+@login_required
+def new_repository():
+    form = CreateRepositoryForm()
+    if request.method == "POST":
+        repository = repository_controller.create_repository(form)
+        return redirect(url_for("main_routes.show_repository", repository_id=repository.id))
+    return render_template("repository/repository_create.html", form=form)
+
+@main_routes.route("/users")
+def list_users():
+    users = user_controller.list_users()
+    return render_template("user/user_list.html", users=users)
+
+@main_routes.route("/users/<int:user_id>")
+def show_user(user_id):
+    user = user_controller.show_user(user_id)
+    return render_template("user/user_detail.html", user=user)
+
+@main_routes.route("/users/new", methods=["GET", "POST"])
+@login_required
+def new_user():
+    form = CreateUserForm()
+    if request.method == "POST":
+        user = user_controller.create_user(form)
+        login_user(user)
+        return redirect(url_for("main_routes.index"))
+    return render_template("user/user_create.html", form=form)
+
+@main_routes.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("main_routes.index"))
+    if request.method == "POST":
+        email = request.form["email"]
+        password = request.form["password"]
+        user = User.query.filter
+ if user is None or not user.check_password(password):
+            return redirect(url_for("main_routes.login"))
+        login_user(user)
+        return redirect(url_for("main_routes.index"))
+    return render_template("login.html")
+
+@main_routes.route("/logout")
+def logout():
+    logout_user()
+    return redirect(url_for("main_routes.index"))
+
+@main_routes.route("/edit_repository/<int:repository_id>", methods=["GET", "POST"])
+@login_required
+def edit_repository(repository_id):
+    repository = Repository.query.get(repository_id)
+    form = CreateRepositoryForm(obj=repository)
+    if request.method == "POST":
+        form.populate_obj(repository)
+        repository_controller.update_repository(repository)
+        return redirect(url_for("main_routes.show_repository", repository_id=repository.id))
+    return render_template("repository/repository_edit.html", form=form)
+
+name: Second Workflow
+
+on:
+  repository_dispatch:
+    types: [trigger-second-workflow]
+
+jobs:
+  second_job:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.x
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Generate Pages
+      run: python generate_pages.py django flask fastapi tensorflow pytorch pandas numpy matplotlib seaborn plotly sqlalchemy celery gunicorn uwsgi docker-ce kubernetes libcloud
+
+    - name: Deploy to GitHub Pages
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git checkout -b gh-pages
+        git add .nojekyll menu.html *_page.html
+        git commit -m "Update menu and pages"
+        git push --force origin gh-pages
