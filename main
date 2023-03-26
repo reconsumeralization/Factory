@@ -653,4 +653,39 @@ def edit_repository(repository_id):
         return redirect(url_for("main_routes.show_repository", repository_id=repository.id))
     return render_template("repository/repository_edit.html", form=form)
 
-!
+name: Second Workflow
+
+on:
+  repository_dispatch:
+    types: [trigger-second-workflow]
+
+jobs:
+  second_job:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.x
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Generate Pages
+      run: python generate_pages.py django flask fastapi tensorflow pytorch pandas numpy matplotlib seaborn plotly sqlalchemy celery gunicorn uwsgi docker-ce kubernetes libcloud
+
+    - name: Deploy to GitHub Pages
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        git checkout -b gh-pages
+        git add .nojekyll menu.html *_page.html
+        git commit -m "Update menu and pages"
+        git push --force origin gh-pages
+
